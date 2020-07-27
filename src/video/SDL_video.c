@@ -493,19 +493,15 @@ SDL_VideoInit(const char *driver_name)
     if (driver_name != NULL) {
         for (i = 0; bootstrap[i]; ++i) {
             if (SDL_strncasecmp(bootstrap[i]->name, driver_name, SDL_strlen(driver_name)) == 0) {
-                if (bootstrap[i]->available()) {
-                    video = bootstrap[i]->create(index);
-                    break;
-                }
+                video = bootstrap[i]->create(index);
+                break;
             }
         }
     } else {
         for (i = 0; bootstrap[i]; ++i) {
-            if (bootstrap[i]->available()) {
-                video = bootstrap[i]->create(index);
-                if (video != NULL) {
-                    break;
-                }
+            video = bootstrap[i]->create(index);
+            if (video != NULL) {
+                break;
             }
         }
     }
@@ -1429,7 +1425,7 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
 
     if (!_this) {
         /* Initialize the video system if needed */
-        if (SDL_VideoInit(NULL) < 0) {
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             return NULL;
         }
     }
@@ -1706,10 +1702,12 @@ SDL_RecreateWindow(SDL_Window * window, Uint32 flags)
         return -1;
     }
 
+    /*
     if ((window->flags & SDL_WINDOW_METAL) != (flags & SDL_WINDOW_METAL)) {
         SDL_SetError("Can't change SDL_WINDOW_METAL window flag");
         return -1;
     }
+    */
 
     if ((window->flags & SDL_WINDOW_VULKAN) && (flags & SDL_WINDOW_OPENGL)) {
         SDL_SetError("Vulkan and OpenGL not supported on same window");
@@ -2372,6 +2370,7 @@ SDL_GetWindowSurface(SDL_Window * window)
         if (window->surface) {
             window->surface->flags &= ~SDL_DONTFREE;
             SDL_FreeSurface(window->surface);
+            window->surface = NULL;
         }
         window->surface = SDL_CreateWindowFramebuffer(window);
         if (window->surface) {
@@ -2731,7 +2730,7 @@ ShouldMinimizeOnFocusLoss(SDL_Window * window)
     }
 #endif
 
-    return SDL_GetHintBoolean(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_TRUE);
+    return SDL_GetHintBoolean(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, SDL_FALSE);
 }
 
 void

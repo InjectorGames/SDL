@@ -51,10 +51,6 @@ static LPDIRECTINPUT8 dinput = NULL;
 static int
 DI_SetError(const char *str, HRESULT err)
 {
-    /*
-       SDL_SetError("Haptic: %s - %s: %s", str,
-       DXGetErrorString8A(err), DXGetErrorDescription8A(err));
-     */
     return SDL_SetError("Haptic error %s", str);
 }
 
@@ -87,7 +83,7 @@ SDL_DINPUT_HapticInit(void)
     coinitialized = SDL_TRUE;
 
     ret = CoCreateInstance(&CLSID_DirectInput8, NULL, CLSCTX_INPROC_SERVER,
-        &IID_IDirectInput8, (LPVOID)& dinput);
+        &IID_IDirectInput8, (LPVOID *) &dinput);
     if (FAILED(ret)) {
         SDL_SYS_HapticQuit();
         return DI_SetError("CoCreateInstance", ret);

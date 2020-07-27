@@ -70,7 +70,17 @@ case "$host" in
 esac
 
 dnl Set up the compiler and linker flags
-INCLUDE="-I$srcdir/include -idirafter $srcdir/src/video/khronos"
+INCLUDE="-I$srcdir/include"
+
+dnl Don't use our khronos headers on QNX.
+case "$host" in
+    *-*-nto-qnx*)
+        ;;
+    *)
+        INCLUDE="$INCLUDE -idirafter $srcdir/src/video/khronos"
+        ;;
+esac
+
 if test x$srcdir != x.; then
     INCLUDE="-Iinclude $INCLUDE"
 elif test -d .hg; then
@@ -1309,8 +1319,8 @@ dnl Check for ARM instruction support using gas syntax
 CheckARM()
 {
     AC_ARG_ENABLE(arm-simd,
-AC_HELP_STRING([--enable-arm-simd], [use SIMD assembly blitters on ARM [[default=yes]]]),
-                  enable_arm_simd=$enableval, enable_arm_simd=yes)
+AC_HELP_STRING([--enable-arm-simd], [use SIMD assembly blitters on ARM [[default=no]]]),
+                  enable_arm_simd=$enableval, enable_arm_simd=no)
     if test x$enable_video = xyes -a x$enable_assembly = xyes -a x$enable_arm_simd = xyes; then
         save_CFLAGS="$CFLAGS"
         have_arm_simd=no
@@ -2147,7 +2157,7 @@ AS_HELP_STRING([--enable-render-metal], [enable the Metal render driver [[defaul
           #import <Metal/Metal.h>
           #import <QuartzCore/CAMetalLayer.h>
 
-          #if !TARGET_CPU_X86_64
+          #if TARGET_CPU_X86
           #error Metal doesn't work on this configuration
           #endif
         ],[
@@ -2562,7 +2572,7 @@ CheckVulkan()
                   #include <Metal/Metal.h>
                   #include <QuartzCore/CAMetalLayer.h>
 
-                  #if !TARGET_CPU_X86_64
+                  #if TARGET_CPU_X86
                   #error Vulkan doesn't work on this configuration
                   #endif
                 ],[
@@ -2731,25 +2741,18 @@ CheckFcitx()
 AS_HELP_STRING([--enable-fcitx], [enable fcitx support [[default=yes]]]),
                   , enable_fcitx=yes)
     if test x$enable_fcitx = xyes; then
-        PKG_CHECK_MODULES([FCITX], [fcitx], have_fcitx=yes, have_fcitx=no)
-        CFLAGS="$CFLAGS $FCITX_CFLAGS"
-        AC_CHECK_HEADER(fcitx/frontend.h,
-                        have_fcitx_frontend_h_hdr=yes,
-                        have_fcitx_frontend_h_hdr=no)
-        CFLAGS="$save_CFLAGS"
-        if test x$have_fcitx_frontend_h_hdr = xyes; then
-            if test x$enable_ime != xyes; then
-                AC_MSG_WARN([IME support is required for fcitx.])
-                have_fcitx_frontend_h_hdr=no
-            elif test x$enable_dbus != xyes; then
-                AC_MSG_WARN([DBus support is required for fcitx.])
-                have_fcitx_frontend_h_hdr=no
-            else
-                AC_DEFINE(HAVE_FCITX_FRONTEND_H, 1, [ ])
-                EXTRA_CFLAGS="$EXTRA_CFLAGS $FCITX_CFLAGS"
-                SOURCES="$SOURCES $srcdir/src/core/linux/SDL_fcitx.c"
-            fi
+        AC_MSG_CHECKING(for fcitx support)
+        have_fcitx=no
+        if test x$enable_ime != xyes; then
+            AC_MSG_WARN([IME support is required for fcitx.])
+        elif test x$have_dbus_dbus_h_hdr != xyes; then
+            AC_MSG_WARN([DBus support is required for fcitx.])
+        else
+            have_fcitx=yes
+            AC_DEFINE(HAVE_FCITX, 1, [ ])
+            SOURCES="$SOURCES $srcdir/src/core/linux/SDL_fcitx.c"
         fi
+        AC_MSG_RESULT($have_fcitx)
     fi
 }
 
@@ -3286,7 +3289,7 @@ CheckHIDAPI()
     # so we'll just use libusb when it's available.
     case "$host" in
         # libusb does not support iOS
-        arm*-apple-darwin* | *-ios-* )
+        *-ios-* )
             skiplibusb=yes
             ;;
         # On the other hand, *BSD specifically uses libusb only
@@ -3869,7 +3872,7 @@ AS_HELP_STRING([--enable-render-d3d], [enable the Direct3D render driver [[defau
         #  other spins, like x86-64, use a more standard "libstdc++.so.*"
         AC_CHECK_FILE("/boot/system/lib/libstdc++.r4.so", EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lstdc++.r4", EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lstdc++")
         ;;
-    arm*-apple-darwin*|*-ios-*)
+    *-ios-*)
         ARCH=ios
 
         CheckVisibilityHidden
@@ -3899,6 +3902,9 @@ AS_HELP_STRING([--enable-render-d3d], [enable the Direct3D render driver [[defau
             SOURCES="$SOURCES $srcdir/src/joystick/iphoneos/*.m"
             SOURCES="$SOURCES $srcdir/src/joystick/steam/*.c"
             have_joystick=yes
+        else
+            # Need this code for accelerometer as joystick support
+            SOURCES="$SOURCES $srcdir/src/joystick/iphoneos/*.m"
         fi
         # Set up files for the haptic library
         #if test x$enable_haptic = xyes; then
@@ -4408,7 +4414,7 @@ if test x$have_ibus_ibus_h_hdr = xyes; then
 else
     SUMMARY="${SUMMARY}Using ibus          : NO\n"
 fi
-if test x$have_fcitx_frontend_h_hdr = xyes; then
+if test x$have_fcitx = xyes; then
     SUMMARY="${SUMMARY}Using fcitx         : YES\n"
 else
     SUMMARY="${SUMMARY}Using fcitx         : NO\n"
